@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>جدول أدوية النزلة المعوية</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Cairo', 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #f0f9ff 0%, #fdf4ff 100%);
+      min-height: 100vh;
+      padding: 24px 16px;
+      direction: rtl;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const STORAGE_KEY = "med_schedule_checked";
+
+    const times = [
+      {
+        id: 1, time: "٨:٠٠ صباحاً", emoji: "🌅", label: "الصباح",
+        bg: "#FFF8F0", accent: "#F97316",
+        meds: [
+          { name: "جاست ريج",   dose: "١ قرص",   note: "قبل الأكل بـ٣٠ دقيقة",          color: "#3B82F6" },
+          { name: "ستربتوكين", dose: "١ قرص",   note: "بعد الأكل",                       color: "#10B981" },
+          { name: "بنادول",    dose: "١–٢ قرص", note: "عند الحاجة (ألم أو حرارة)",       color: "#8B5CF6", optional: true },
+        ],
+      },
+      {
+        id: 2, time: "٢:٠٠ ظهراً", emoji: "☀️", label: "الظهر",
+        bg: "#F0FDF4", accent: "#16A34A",
+        meds: [
+          { name: "جاست ريج",   dose: "١ قرص",   note: "قبل الأكل بـ٣٠ دقيقة",          color: "#3B82F6" },
+          { name: "ستربتوكين", dose: "١ قرص",   note: "بعد الأكل",                       color: "#10B981" },
+          { name: "بسكوبان",   dose: "١–٢ قرص", note: "عند المغص أو التقلصات",           color: "#EC4899", optional: true },
+          { name: "بنادول",    dose: "١–٢ قرص", note: "عند الحاجة (ألم أو حرارة)",       color: "#8B5CF6", optional: true },
+        ],
+      },
+      {
+        id: 3, time: "٨:٠٠ مساءً", emoji: "🌙", label: "المساء",
+        bg: "#F5F3FF", accent: "#7C3AED",
+        meds: [
+          { name: "جاست ريج",   dose: "١ قرص",   note: "قبل الأكل بـ٣٠ دقيقة",          color: "#3B82F6" },
+          { name: "ستربتوكين", dose: "١ قرص",   note: "بعد الأكل",                       color: "#10B981" },
+          { name: "بسكوبان",   dose: "١–٢ قرص", note: "عند المغص أو التقلصات",           color: "#EC4899", optional: true },
+          { name: "بنادول",    dose: "١–٢ قرص", note: "عند الحاجة (ألم أو حرارة)",       color: "#8B5CF6", optional: true },
+        ],
+      },
+    ];
+
+    const medSummary = [
+      { name: "ستربتوكين", color: "#10B981", freq: "٣× يومياً بعد الأكل",              note: "مضاد حيوي معوي — أكمل الكورس كاملاً" },
+      { name: "جاست ريج",  color: "#3B82F6", freq: "٣× يومياً قبل الأكل بـ٣٠ دقيقة", note: "ضد الغثيان وتنظيم حركة المعدة" },
+      { name: "بسكوبان",  color: "#EC4899", freq: "عند الحاجة — مغص وتقلصات",         note: "لا تتجاوزي ٣× يومياً" },
+      { name: "بنادول",   color: "#8B5CF6", freq: "عند الحاجة كل ٦ ساعات",            note: "لا تتجاوزي ٨ أقراص في اليوم" },
+    ];
+
+    function getToday() {
+      return new Date().toISOString().split("T")[0]; // "2025-05-10"
+    }
+
+    function App() {
+      const [checked, setChecked] = useState({});
+      const [lastReset, setLastReset] = useState(getToday());
+
+      // Load from localStorage on mount
+      useEffect(() => {
+        try {
+          const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+          // Auto-reset if new day
+          if (saved.date && saved.date !== getToday()) {
+            localStorage.removeItem(STORAGE_KEY);
+          } else {
+            setChecked(saved.checks || {});
+            setLastReset(saved.date || getToday());
+          }
+        } catch {}
+      }, []);
+
+      // Save to localStorage on every change
+      useEffect(() => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ checks: checked, date: lastReset }));
+      }, [checked, lastReset]);
+
+      const toggle = (key) => {
+        setChecked(prev => ({ ...prev, [key]: !prev[key] }));
+      };
+
+      const resetAll = () => {
+        if (confirm("إعادة تعيين جميع الأدوية؟")) {
+          setChecked({});
+          setLastReset(getToday());
+        }
+      };
+
+      const totalMeds = times.reduce((s, t) => s + t.meds.length, 0);
+      const takenMeds = Object.values(checked).filter(Boolean).length;
+      const progress = Math.round((takenMeds / totalMeds) * 100);
+
+      return (
+        <div style={{ maxWidth: 520, margin: "0 auto" }}>
+
+          {/* Header */}
+          <div style={{
+            background: "white", borderRadius: 20, padding: "20px 24px",
+            marginBottom: 16, boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+            borderRight: "5px solid #EF4444",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: 36 }}>💊</span>
+              <div style={{ flex: 1 }}>
+                <h1 style={{ fontSize: 20, fontWeight: 800, color: "#1e293b" }}>جدول الأدوية</h1>
+                <p style={{ fontSize: 13, color: "#64748b" }}>نزلة معوية — يتجدد تلقائياً كل يوم</p>
+              </div>
+              <button onClick={resetAll} style={{
+                background: "#FFF1F2", color: "#E11D48", border: "none",
+                padding: "6px 12px", borderRadius: 20, fontSize: 12,
+                fontWeight: 700, cursor: "pointer",
+              }}>🔄 إعادة تعيين</button>
+            </div>
+
+            {/* Progress Bar */}
+            <div style={{ marginTop: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#64748b", marginBottom: 6 }}>
+                <span>التقدم اليومي</span>
+                <span style={{ fontWeight: 700, color: progress === 100 ? "#10B981" : "#64748b" }}>
+                  {takenMeds} / {totalMeds} {progress === 100 ? "✅ أحسنتِ!" : ""}
+                </span>
+              </div>
+              <div style={{ background: "#f1f5f9", borderRadius: 99, height: 8 }}>
+                <div style={{
+                  background: progress === 100 ? "#10B981" : "#3B82F6",
+                  borderRadius: 99, height: 8,
+                  width: progress + "%",
+                  transition: "width 0.4s ease",
+                }} />
+              </div>
+            </div>
+          </div>
+
+          {/* Time Cards */}
+          {times.map((t) => (
+            <div key={t.id} style={{
+              background: "white", borderRadius: 16, marginBottom: 16,
+              boxShadow: "0 2px 12px rgba(0,0,0,0.07)", overflow: "hidden",
+            }}>
+              <div style={{
+                background: t.bg, padding: "12px 20px",
+                borderBottom: `3px solid ${t.accent}`,
+                display: "flex", alignItems: "center", gap: 10,
+              }}>
+                <span style={{ fontSize: 24 }}>{t.emoji}</span>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 16, color: t.accent }}>{t.label}</div>
+                  <div style={{ fontSize: 13, color: "#64748b" }}>{t.time}</div>
+                </div>
+              </div>
+
+              <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+                {t.meds.map((med, i) => {
+                  const key = `${t.id}-${i}`;
+                  const done = !!checked[key];
+                  return (
+                    <div key={i} onClick={() => toggle(key)} style={{
+                      display: "flex", alignItems: "center", gap: 12,
+                      padding: "10px 14px", borderRadius: 12,
+                      border: `1.5px solid ${done ? "#d1fae5" : "#f1f5f9"}`,
+                      background: done ? "#f0fdf4" : med.optional ? "#fafafa" : "#f8fafc",
+                      cursor: "pointer", transition: "all 0.2s",
+                      opacity: done ? 0.7 : 1,
+                    }}>
+                      <div style={{
+                        width: 22, height: 22, borderRadius: "50%",
+                        border: `2px solid ${done ? "#10B981" : med.color}`,
+                        background: done ? "#10B981" : "white",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        flexShrink: 0, fontSize: 12, color: "white", fontWeight: 700,
+                      }}>
+                        {done ? "✓" : ""}
+                      </div>
+                      <div style={{
+                        width: 10, height: 10, borderRadius: "50%",
+                        background: med.color, flexShrink: 0,
+                      }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{
+                          fontWeight: 700, fontSize: 15,
+                          color: done ? "#94a3b8" : "#1e293b",
+                          textDecoration: done ? "line-through" : "none",
+                        }}>
+                          {med.name}
+                          {med.optional && (
+                            <span style={{
+                              marginRight: 8, fontSize: 11,
+                              background: "#FFF7ED", color: "#EA580C",
+                              padding: "2px 8px", borderRadius: 10, fontWeight: 600,
+                            }}>عند الحاجة</span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{med.note}</div>
+                      </div>
+                      <div style={{
+                        background: med.color + "18", color: med.color,
+                        padding: "4px 10px", borderRadius: 10,
+                        fontSize: 12, fontWeight: 700, flexShrink: 0,
+                      }}>
+                        {med.dose}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+
+          {/* Summary */}
+          <div style={{
+            background: "white", borderRadius: 16, padding: "16px 20px",
+            boxShadow: "0 2px 12px rgba(0,0,0,0.07)", marginBottom: 16,
+          }}>
+            <h2 style={{ margin: "0 0 14px 0", fontSize: 15, fontWeight: 800, color: "#1e293b" }}>
+              📋 ملخص الأدوية
+            </h2>
+            {medSummary.map((m, i) => (
+              <div key={i} style={{
+                display: "flex", gap: 12, alignItems: "flex-start",
+                padding: "10px 0",
+                borderBottom: i < medSummary.length - 1 ? "1px solid #f1f5f9" : "none",
+              }}>
+                <div style={{
+                  width: 10, height: 10, borderRadius: "50%",
+                  background: m.color, flexShrink: 0, marginTop: 5,
+                }} />
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: "#1e293b" }}>{m.name}</div>
+                  <div style={{ fontSize: 12, color: "#3B82F6", fontWeight: 600 }}>{m.freq}</div>
+                  <div style={{ fontSize: 12, color: "#94a3b8" }}>{m.note}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Notes */}
+          <div style={{
+            background: "#FFF7ED", borderRadius: 14, padding: "14px 16px",
+            border: "1px solid #FED7AA", marginBottom: 32,
+          }}>
+            <div style={{ fontWeight: 700, fontSize: 13, color: "#C2410C", marginBottom: 8 }}>⚠️ ملاحظات مهمة</div>
+            {[
+              "الجرعات دي اعتيادية — اتبعي تعليمات الدكتور لو اختلفت",
+              "الستربتوكين لازم يتاخد كورس كامل حتى لو الحالة تحسنت",
+              "البنادول والبسكوبان عند الحاجة بس — مش لازم تنتظمي عليهم",
+              "اشربي ميه كتير وخدي راحة 💙",
+            ].map((n, i) => (
+              <div key={i} style={{
+                fontSize: 12, color: "#92400E",
+                display: "flex", gap: 6, marginBottom: 4,
+              }}>
+                <span>•</span><span>{n}</span>
+              </div>
+            ))}
+          </div>
+
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
